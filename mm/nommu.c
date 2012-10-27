@@ -1754,17 +1754,13 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 }
 EXPORT_SYMBOL(remap_pfn_range);
 
-int remap_vmalloc_range(struct vm_area_struct *vma, void *addr,
-			unsigned long pgoff)
+int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
+		unsigned long pfn, unsigned long size, pgprot_t prot)
 {
-	unsigned int size = vma->vm_end - vma->vm_start;
-
-	if (!(vma->vm_flags & VM_USERMAP))
+	if (addr != (pfn << PAGE_SHIFT))
 		return -EINVAL;
 
-	vma->vm_start = (unsigned long)(addr + (pgoff << PAGE_SHIFT));
-	vma->vm_end = vma->vm_start + size;
-
+	vma->vm_flags |= VM_IO | VM_RESERVED | VM_PFNMAP;
 	return 0;
 }
 EXPORT_SYMBOL(remap_vmalloc_range);
