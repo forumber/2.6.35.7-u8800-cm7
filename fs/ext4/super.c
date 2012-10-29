@@ -2798,7 +2798,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_gdb_count = db_count;
 	get_random_bytes(&sbi->s_next_generation, sizeof(u32));
 	spin_lock_init(&sbi->s_next_gen_lock);
-    /*<DTS2011102401113 zhengzhechu 2011-10-24 begin */
+
 	err = percpu_counter_init(&sbi->s_freeblocks_counter,
 			ext4_count_free_blocks(sb));
 	if (!err) {
@@ -2816,10 +2816,10 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		ext4_msg(sb, KERN_ERR, "insufficient memory");
 		goto failed_mount3;
 	}
-    /* DTS2011102401113 zhengzhechu 2011-10-24 end> */
+
 	sbi->s_stripe = ext4_get_stripe_size(sbi);
 	sbi->s_max_writeback_mb_bump = 128;
-    
+
 	/*
 	 * set up enough so that it can read an inode
 	 */
@@ -2914,7 +2914,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		break;
 	}
 	set_task_ioprio(sbi->s_journal->j_task, journal_ioprio);
-    /*<DTS2011102401113 zhengzhechu 2011-10-24 begin */
+
 	/*
 	 * The journal may have updated the bg summary counts, so we
 	 * need to update the global counters.
@@ -2928,7 +2928,6 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	percpu_counter_set(&sbi->s_dirtyblocks_counter, 0);
 
 no_journal:
-    /* DTS2011102401113 zhengzhechu 2011-10-24 end> */
 	if (test_opt(sb, NOBH)) {
 		if (!(test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_WRITEBACK_DATA)) {
 			ext4_msg(sb, KERN_WARNING, "Ignoring nobh option - "
@@ -3080,9 +3079,6 @@ failed_mount_wq:
 		jbd2_journal_destroy(sbi->s_journal);
 		sbi->s_journal = NULL;
 	}
-    /*<DTS2011102401113 zhengzhechu 2011-10-24 begin */
-    //delete 4 lines
-    /* DTS2011102401113 zhengzhechu 2011-10-24 end> */
 failed_mount3:
 	if (sbi->s_flex_groups) {
 		if (is_vmalloc_addr(sbi->s_flex_groups))
@@ -3090,12 +3086,10 @@ failed_mount3:
 		else
 			kfree(sbi->s_flex_groups);
 	}
-	/*<DTS2011102401113 zhengzhechu 2011-10-24 begin */
 	percpu_counter_destroy(&sbi->s_freeblocks_counter);
 	percpu_counter_destroy(&sbi->s_freeinodes_counter);
 	percpu_counter_destroy(&sbi->s_dirs_counter);
 	percpu_counter_destroy(&sbi->s_dirtyblocks_counter);
-	/* DTS2011102401113 zhengzhechu 2011-10-24 end> */
 failed_mount2:
 	for (i = 0; i < db_count; i++)
 		brelse(sbi->s_group_desc[i]);
@@ -3411,9 +3405,10 @@ static int ext4_commit_super(struct super_block *sb, int sync)
 			    ((part_stat_read(sb->s_bdev->bd_part, sectors[1]) -
 			      EXT4_SB(sb)->s_sectors_written_start) >> 1));
 	ext4_free_blocks_count_set(es, percpu_counter_sum_positive(
-					&EXT4_SB(sb)->s_freeblocks_counter));
-	es->s_free_inodes_count = cpu_to_le32(percpu_counter_sum_positive(
-					&EXT4_SB(sb)->s_freeinodes_counter));
+					   &EXT4_SB(sb)->s_freeblocks_counter));
+	es->s_free_inodes_count =
+		cpu_to_le32(percpu_counter_sum_positive(
+				&EXT4_SB(sb)->s_freeinodes_counter));
 	sb->s_dirt = 0;
 	BUFFER_TRACE(sbh, "marking dirty");
 	mark_buffer_dirty(sbh);
