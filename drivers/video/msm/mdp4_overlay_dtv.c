@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -127,7 +127,7 @@ int mdp4_dtv_on(struct platform_device *pdev)
 		ptype = mdp4_overlay_format2type(format);
 		if (ptype < 0)
 			printk(KERN_INFO "%s: format2type failed\n", __func__);
-		pipe = mdp4_overlay_pipe_alloc(ptype, MDP4_MIXER1, 0);
+		pipe = mdp4_overlay_pipe_alloc(ptype, MDP4_MIXER1);
 		if (pipe == NULL) {
 			printk(KERN_INFO "%s: pipe_alloc failed\n", __func__);
 			return -EBUSY;
@@ -269,8 +269,6 @@ int mdp4_dtv_off(struct platform_device *pdev)
 {
 	int ret = 0;
 
-	ret = panel_next_off(pdev);
-
 	/* MDP cmd block enable */
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
 	MDP_OUTP(MDP_BASE + DTV_BASE, 0);
@@ -278,15 +276,24 @@ int mdp4_dtv_off(struct platform_device *pdev)
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 	mdp_pipe_ctrl(MDP_OVERLAY1_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 
-
-	/* delay to make sure the last frame finishes */
-	msleep(100);
-
+	/*
+	 * wait for vsync == 16.6 ms to make sure
+	 * the last frame finishes
+	*/
+	msleep(20);
 	pr_info("%s\n", __func__);
+
+	ret = panel_next_off(pdev);
 
 	/* dis-engage rgb2 from mixer1 */
 	if (dtv_pipe)
 		mdp4_mixer_stage_down(dtv_pipe);
+
+	/*
+	 * wait for another vsync == 16.6 ms to make sure
+	 * rgb2 dis-engaged
+	*/
+	msleep(20);
 
 	return ret;
 }
@@ -317,6 +324,9 @@ void mdp4_overlay_dtv_vsync_push(struct msm_fb_data_type *mfd,
 		return;
 
 	mdp4_overlay_dtv_wait4vsync(mfd);
+
+	/* change mdp clk while mdp is idle` */
+	mdp4_set_perf_level();
 }
 
 static void mdp4_overlay_dtv_ov_start(struct msm_fb_data_type *mfd)
@@ -332,8 +342,6 @@ static void mdp4_overlay_dtv_ov_start(struct msm_fb_data_type *mfd)
 	mdp_intr_mask |= INTR_OVERLAY1_DONE;
 	outp32(MDP_INTR_ENABLE, mdp_intr_mask);
 	spin_unlock_irqrestore(&mdp_spin_lock, flag);
-	wait_for_completion_killable(&dtv_pipe->comp);
-	mdp_disable_irq(MDP_OVERLAY1_TERM);
 	mfd->ov_start = true;
 }
 
@@ -346,6 +354,8 @@ static void mdp4_overlay_dtv_wait4_ov_done(struct msm_fb_data_type *mfd,
 
 	if (!(data & 0x1) || (pipe == NULL))
 		return;
+	wait_for_completion_killable(&dtv_pipe->comp);
+	mdp_disable_irq(MDP_OVERLAY1_TERM);
 }
 
 void mdp4_overlay_dtv_ov_done_push(struct msm_fb_data_type *mfd,
@@ -354,11 +364,14 @@ void mdp4_overlay_dtv_ov_done_push(struct msm_fb_data_type *mfd,
 
 	mdp4_overlay_reg_flush(pipe, 1);
 	mdp4_overlay_dtv_ov_start(mfd);
-	
+
 	if (pipe->flags & MDP_OV_PLAY_NOWAIT)
 		return;
 
 	mdp4_overlay_dtv_wait4_ov_done(mfd, pipe);
+
+	/* change mdp clk while mdp is idle` */
+	mdp4_set_perf_level();
 }
 
 void mdp4_overlay_dtv_wait_for_ov(struct msm_fb_data_type *mfd,
@@ -413,8 +426,6 @@ void mdp4_dtv_overlay(struct msm_fb_data_type *mfd)
 	}
 	mdp4_overlay_dtv_ov_done_push(mfd, pipe);
 
-
 	mdp4_stat.kickoff_dtv++;
-	mdp4_overlay_resource_release();
 	mutex_unlock(&mfd->dma->ov_mutex);
 }
