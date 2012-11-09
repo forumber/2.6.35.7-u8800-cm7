@@ -1061,7 +1061,7 @@ int write_multitouchscreen_config(u8 instance,int flag)
 	*(tmp + 11) = 3; //movhysti
 	/* < DTS2011042106137 zhangtao 20110509 begin */
 	/*  make the point report every pix */
-	*(tmp + 12) = 3; //movhystn
+	*(tmp + 12) = 1; //movhystn
 	/* DTS2011042106137 zhangtao 20110509 end > */
 	*(tmp + 13) = 0;//0x2e; //movfilter
 	*(tmp + 14) = 2; //numtouch
