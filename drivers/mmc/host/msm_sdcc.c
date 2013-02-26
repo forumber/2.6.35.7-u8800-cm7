@@ -755,7 +755,7 @@ msmsdcc_pio_irq(int irq, void *dev_id)
 		/* Map the current scatter buffer */
 		local_irq_save(flags);
 /* < DTS2010111804286  hanshirong 20101118 begin */
-#ifndef CONFIG_HUAWEI_WIFI_SDCC
+#ifdef CONFIG_HUAWEI_WIFI_SDCC
 		if ( NULL == host->pio.sg ) {
 			local_irq_restore(flags);
 			printk(KERN_ERR"host->pio.sg is NULL\n");
@@ -1553,7 +1553,7 @@ msmsdcc_platform_sdiowakeup_irq(int irq, void *dev_id)
 {
 	struct msmsdcc_host	*host = dev_id;
 
-	pr_debug("%s: SDIO Wake up IRQ : %d\n", mmc_hostname(host->mmc), irq);
+	pr_info("%s: SDIO Wake up IRQ : %d\n", mmc_hostname(host->mmc), irq);
 	BUG_ON(irq != host->plat->sdiowakeup_irq);
 
 	spin_lock(&host->lock);
@@ -1654,8 +1654,9 @@ set_polling(struct device *dev, struct device_attribute *attr,
 #ifdef CONFIG_HUAWEI_WIFI_SDCC
 		if (host->pdev_id == SDCC_WIFI_SLOT) {
 /* < DTS2011041800861 xuke 20110418 begin */
-//			printk("%s : no need to enable polling for slot %d (as host->pdev_id) \n", __FUNCTION__ , \
-//							host->pdev_id );
+/*			printk("%s : no need to enable polling for slot %d (as host->pdev_id) \n", __FUNCTION__ , \
+							host->pdev_id );
+*/
 /* DTS2011041800861 xuke 20110418 end > */
 //			mmc->caps &= ~MMC_CAP_NEEDS_POLL;
 	        }
@@ -2388,13 +2389,17 @@ msmsdcc_runtime_suspend(struct device *dev)
 		 * simple become pm usage counter increment operations.
 		 */
 /* < DTS2011022102443 xuke 20110303 begin */
-
+#ifndef CONFIG_HUAWEI_KERNEL
+		if(SDCC_WIFI_SLOT != host->pdev_id){
+#endif
 /* DTS2011022102443 xuke 20110303 end > */
 		pm_runtime_get_noresume(dev);
 		rc = mmc_suspend_host(mmc);
 		pm_runtime_put_noidle(dev);
 /* < DTS2011022102443 xuke 20110303 begin */
-
+#ifndef CONFIG_HUAWEI_KERNEL
+		}
+#endif
 /* DTS2011022102443 xuke 20110303 end > */
 		if (!rc) {
 			/*
@@ -2403,14 +2408,13 @@ msmsdcc_runtime_suspend(struct device *dev)
 			 */
 			mmc->ios.clock = 0;
 			mmc->ops->set_ios(host->mmc, &host->mmc->ios);
-
-			if (mmc->card && (mmc->card->type == MMC_TYPE_SDIO) &&
-				(mmc->pm_flags & MMC_PM_WAKE_SDIO_IRQ)) {
-				if (host->plat->sdiowakeup_irq) {
-					host->sdio_irq_disabled = 0;
-					msmsdcc_enable_irq_wake(host);
-					enable_irq(host->plat->sdiowakeup_irq);
-				}
+		}
+		if (mmc->card && (mmc->card->type == MMC_TYPE_SDIO) &&
+			(mmc->pm_flags & MMC_PM_WAKE_SDIO_IRQ)) {
+			if (host->plat->sdiowakeup_irq) {
+				host->sdio_irq_disabled = 0;
+				msmsdcc_enable_irq_wake(host);
+				enable_irq(host->plat->sdiowakeup_irq);
 			}
 		}
 		host->sdcc_suspending = 0;
@@ -2458,11 +2462,15 @@ msmsdcc_runtime_resume(struct device *dev)
 		spin_unlock_irqrestore(&host->lock, flags);
 
 /* < DTS2011022102443 xuke 20110303 begin */
-
+#ifndef CONFIG_HUAWEI_KERNEL
+		if(SDCC_WIFI_SLOT != host->pdev_id){
+#endif
 /* DTS2011022102443 xuke 20110303 end > */
 		mmc_resume_host(mmc);
 /* < DTS2011022102443 xuke 20110303 begin */
-
+#ifndef CONFIG_HUAWEI_KERNEL
+		}
+#endif
 /* DTS2011022102443 xuke 20110303 end > */
 
 		/*
